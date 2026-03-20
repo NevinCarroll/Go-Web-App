@@ -10,12 +10,13 @@ import (
 func main() {
   // Create a Gin router with default middleware (logger and recovery)
   r := gin.Default()
-// testing
+  r.LoadHTMLGlob("templates/*") // Load templates into memory
+  // testing
   // Define a simple GET endpoint
-  r.GET("/ping", func(c *gin.Context) {
+  r.GET("/test", func(c *gin.Context) {
     // Return JSON response
-    c.JSON(http.StatusOK, gin.H{
-      "message": "pong",
+    c.HTML(http.StatusOK, "test.html", gin.H{
+
     })
   })
 
