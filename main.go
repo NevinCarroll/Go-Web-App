@@ -222,6 +222,7 @@ func main() {
 			return
 		}
 
+		// Get password from user
 		var storedHash string
 		err := db.QueryRow("SELECT password_hash FROM users WHERE username = ?", username).Scan(&storedHash)
 		if err != nil {
@@ -233,18 +234,21 @@ func main() {
 			return
 		}
 
+		// Check if password equals the stored hashed password
 		if err := bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(password)); err != nil {
 			// Incorrect password provided (hash mismatch) - generic message for security.
 			c.HTML(http.StatusUnauthorized, "login.html", gin.H{"Error": "Invalid credentials"})
 			return
 		}
 
+		// Set the session equal to the user
 		s := sessions.Default(c)
 		s.Set("user", username)
 		s.Save()
 		c.Redirect(http.StatusSeeOther, "/")
 	})
 
+	// Logout of session
 	r.GET("/logout", func(c *gin.Context) {
 		s := sessions.Default(c)
 		s.Clear()
@@ -252,7 +256,9 @@ func main() {
 		c.Redirect(http.StatusSeeOther, "/")
 	})
 
+	// Save users progress
 	r.POST("/save", requireAuth(), func(c *gin.Context) {
+		// The stats of the game when quit
 		var payload struct {
 			Wave   int    `json:"wave"`
 			Lives  int    `json:"lives"`
@@ -264,6 +270,7 @@ func main() {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
 			return
 		}
+		// Get user and save their stats
 		user := getCurrentUser(c)
 		stmt := `INSERT INTO saves(username, wave, lives, gold, seed, towers, updated_at)
 			VALUES(?, ?, ?, ?, ?, ?, ?)
@@ -272,13 +279,17 @@ func main() {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save"})
 			return
 		}
+
 		c.JSON(http.StatusOK, gin.H{"status": "saved"})
 	})
 
+	// Load current save
 	r.GET("/load", requireAuth(), func(c *gin.Context) {
+		// Get the user
 		user := getCurrentUser(c)
 		var wave, lives, gold, seed int
 		var towers string
+		// Get stats from user
 		err := db.QueryRow("SELECT wave,lives,gold,seed,towers FROM saves WHERE username = ?", user).Scan(&wave, &lives, &gold, &seed, &towers)
 		if err != nil {
 			if err == sql.ErrNoRows {
@@ -288,9 +299,11 @@ func main() {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load save"})
 			return
 		}
+		// Send stats to game
 		c.JSON(http.StatusOK, gin.H{"wave": wave, "lives": lives, "gold": gold, "seed": seed, "towers": towers})
 	})
 
+	// Delete user save on new game
 	r.POST("/delete-save", requireAuth(), func(c *gin.Context) {
 		user := getCurrentUser(c)
 		if _, err := db.Exec("DELETE FROM saves WHERE username = ?", user); err != nil {
