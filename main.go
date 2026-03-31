@@ -152,7 +152,7 @@ func main() {
 	// Create web-app
 	r := gin.Default()
 	r.Use(sessions.Sessions("castle_session", cookie.NewStore([]byte("super-secret-key"))))
-	r.LoadHTMLGlob("templates/*") // HTML templates
+	r.LoadHTMLGlob("templates/*")   // HTML templates
 	r.Static("/static", "./static") // Static resources, JS and CSS
 
 	// Main menu
