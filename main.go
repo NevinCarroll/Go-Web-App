@@ -170,10 +170,12 @@ func main() {
 		username := c.PostForm("username")
 		password := c.PostForm("password")
 
+		// Ensure info is given
 		if username == "" || password == "" {
 			c.HTML(http.StatusBadRequest, "register.html", gin.H{"Error": "Username and password cannot be empty"})
 			return
 		}
+		// validate username and password
 		if errMsg := validateUsername(username); errMsg != "" {
 			// If username validation fails, show specific validation message.
 			c.HTML(http.StatusBadRequest, "register.html", gin.H{"Error": errMsg})
@@ -185,12 +187,15 @@ func main() {
 			c.HTML(http.StatusBadRequest, "register.html", gin.H{"Error": errMsg})
 			return
 		}
+
+		// Encrypt password
 		hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 		if err != nil {
 			c.HTML(http.StatusInternalServerError, "register.html", gin.H{"Error": "Failed to hash password"})
 			return
 		}
 
+		// Insert into database
 		_, err = db.Exec("INSERT INTO users(username, password_hash) VALUES(?, ?)", username, string(hash))
 		if err != nil {
 			c.HTML(http.StatusBadRequest, "register.html", gin.H{"Error": "Username already exists"})
@@ -200,10 +205,12 @@ func main() {
 		c.Redirect(http.StatusSeeOther, "/login")
 	})
 
+	// Login page
 	r.GET("/login", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "login.html", gin.H{"Error": ""})
 	})
 
+	// Check if given login info is valid
 	r.POST("/login", func(c *gin.Context) {
 		// Extract form values from POST request.
 		username := c.PostForm("username")
