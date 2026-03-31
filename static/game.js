@@ -217,7 +217,14 @@ class Game {
             if (e.key === '1') this.startTowerPlacement(TowerType.Standard);
             if (e.key === '2') this.startTowerPlacement(TowerType.Rapid);
             if (e.key === '3') this.startTowerPlacement(TowerType.Sniper);
-            if (e.key === 'Escape') this.quitGame();
+            if (e.key === 'Escape') {
+                if (this.modalVisible) {
+                    this.hideQuitModal();
+                } else {
+                    this.showQuitModal();
+                }
+                e.preventDefault();
+            }
         });
 
         const btnStandard = document.getElementById('btnStandard');
@@ -516,7 +523,6 @@ class Game {
 
     gameOver(reason) {
         this.clearSave();
-        // Store stats in localStorage
         localStorage.setItem('gameOverReason', reason);
         localStorage.setItem('goldEarned', this.goldEarned);
         localStorage.setItem('enemiesKilled', this.enemiesKilled);
@@ -525,14 +531,46 @@ class Game {
         window.location.href = '/game-over';
     }
 
-    quitGame() {
-        const leave = confirm('Do you want to end the game and delete your save?\nPress OK to end the game permanently (save deleted), or Cancel to return to menu with save intact.');
-        if (leave) {
-            this.clearSave();
-            window.location.href = '/';
-        } else {
-            window.location.href = '/';
+    showQuitModal() {
+        this.modalVisible = true;
+        const modal = document.getElementById('quitModal');
+        if (!modal) return;
+        modal.classList.remove('hidden');
+
+        const saveBtn = document.getElementById('quitSaveBtn');
+        const noSaveBtn = document.getElementById('quitNoSaveBtn');
+        const cancelBtn = document.getElementById('quitCancelBtn');
+
+        if (saveBtn) {
+            saveBtn.onclick = async () => {
+                await this.saveGame();
+                this.hideQuitModal();
+                window.location.href = '/';
+            };
         }
+
+        if (noSaveBtn) {
+            noSaveBtn.onclick = () => {
+                this.hideQuitModal();
+                this.gameOver('Quit without saving');
+            };
+        }
+
+        if (cancelBtn) {
+            cancelBtn.onclick = () => {
+                this.hideQuitModal();
+            };
+        }
+    }
+
+    hideQuitModal() {
+        this.modalVisible = false;
+        const modal = document.getElementById('quitModal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    quitGame() {
+        this.showQuitModal();
     }
 
     loop(timestamp) {
