@@ -35,11 +35,12 @@
         <p>Logged in as <strong>{{ .User }}</strong>. <a href="/logout">Logout</a></p>
         <button id="btnStartNew">Start New Game</button>
         <button id="btnContinue" style="display:none">Continue Saved Game</button>
+        <button onclick="window.location.href='/tutorial'">Tutorial</button>
     {{ else }}
         <button onclick="window.location.href='/login'">Login</button>
         <button onclick="window.location.href='/register'">Register</button>
+        <button onclick="window.location.href='/tutorial'">Tutorial</button>
     {{ end }}
-    <button onclick="window.location.href='/quit'">Quit</button>
     <script>
         const currentUser = "{{ .User }}";
 
