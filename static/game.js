@@ -181,9 +181,13 @@ class Game {
 
         const params = new URLSearchParams(window.location.search);
         const shouldContinue = params.get('continue') === '1';
-        if (shouldContinue && this.loadSavedGame()) {
-            this.waveInProgress = false;
-            this.updateWaveButtonState();
+        if (shouldContinue) {
+            this.loadSavedGame().then((loaded) => {
+                if (loaded) {
+                    this.waveInProgress = false;
+                    this.updateWaveButtonState();
+                }
+            });
         }
 
         this.setupInput();
@@ -252,7 +256,7 @@ class Game {
         }
     }
 
-    saveGame() {
+    async saveGame() {
         const saveData = {
             wave: this.wave,
             lives: this.lives,
@@ -260,10 +264,42 @@ class Game {
             towers: this.towers.map(t => ({ x: t.pos.x, y: t.pos.y, typeID: t.typeID })),
             seed: this.seed
         };
-        localStorage.setItem(this.saveKey, JSON.stringify(saveData));
+        try {
+            await fetch('/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...saveData, towers: JSON.stringify(saveData.towers) })
+            });
+        } catch (err) {
+            console.error('Could not save game to server', err);
+        }
     }
 
-    loadSavedGame() {
+    async loadSavedGame() {
+        try {
+            const resp = await fetch('/load');
+            if (!resp.ok) return false;
+            const data = await resp.json();
+            this.wave = Number(data.wave) || 0;
+            this.lives = Number(data.lives) || 5;
+            this.gold = Number(data.gold) || 300;
+            const towers = JSON.parse(data.towers || '[]');
+            this.towers = towers.map(t => new Tower(new Vec2(Number(t.x), Number(t.y)), Number(t.typeID)));
+            this.enemies = [];
+            this.seed = Number(data.seed) || this.seed;
+            this.rng = new SeededRNG(this.seed);
+            return true;
+        } catch (err) {
+            console.error('Failed to load saved game', err);
+            return false;
+        }
+    }
+
+    clearSave() {
+        fetch('/delete-save', { method: 'POST' }).catch(err => console.error('Failed to clear server save', err));
+    }
+
+    startTowerPlacement(typeID) {
         const saved = localStorage.getItem(this.saveKey);
         if (!saved) return false;
         try {
@@ -490,7 +526,13 @@ class Game {
     }
 
     quitGame() {
-        this.gameOver('Player quit');
+        const leave = confirm('Do you want to end the game and delete your save?\nPress OK to end the game permanently (save deleted), or Cancel to return to menu with save intact.');
+        if (leave) {
+            this.clearSave();
+            window.location.href = '/';
+        } else {
+            window.location.href = '/';
+        }
     }
 
     loop(timestamp) {

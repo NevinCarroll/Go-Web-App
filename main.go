@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
@@ -28,6 +29,20 @@ func initDB() {
 	);`
 	if _, err := db.Exec(stmt); err != nil {
 		log.Fatalf("failed to initialize database: %v", err)
+	}
+
+	stmt2 := `CREATE TABLE IF NOT EXISTS saves (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		username TEXT NOT NULL UNIQUE,
+		wave INTEGER NOT NULL,
+		lives INTEGER NOT NULL,
+		gold INTEGER NOT NULL,
+		seed INTEGER NOT NULL,
+		towers TEXT NOT NULL,
+		updated_at DATETIME NOT NULL
+	);`
+	if _, err := db.Exec(stmt2); err != nil {
+		log.Fatalf("failed to initialize save table: %v", err)
 	}
 }
 
@@ -132,6 +147,54 @@ func main() {
 		s.Clear()
 		s.Save()
 		c.Redirect(http.StatusSeeOther, "/")
+	})
+
+	r.POST("/save", requireAuth(), func(c *gin.Context) {
+		var payload struct {
+			Wave   int    `json:"wave"`
+			Lives  int    `json:"lives"`
+			Gold   int    `json:"gold"`
+			Seed   int    `json:"seed"`
+			Towers string `json:"towers"`
+		}
+		if err := c.BindJSON(&payload); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+			return
+		}
+		user := getCurrentUser(c)
+		stmt := `INSERT INTO saves(username, wave, lives, gold, seed, towers, updated_at)
+			VALUES(?, ?, ?, ?, ?, ?, ?)
+			ON CONFLICT(username) DO UPDATE SET wave=excluded.wave, lives=excluded.lives, gold=excluded.gold, seed=excluded.seed, towers=excluded.towers, updated_at=excluded.updated_at`
+		if _, err := db.Exec(stmt, user, payload.Wave, payload.Lives, payload.Gold, payload.Seed, payload.Towers, time.Now().UTC()); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"status": "saved"})
+	})
+
+	r.GET("/load", requireAuth(), func(c *gin.Context) {
+		user := getCurrentUser(c)
+		var wave, lives, gold, seed int
+		var towers string
+		err := db.QueryRow("SELECT wave,lives,gold,seed,towers FROM saves WHERE username = ?", user).Scan(&wave, &lives, &gold, &seed, &towers)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				c.JSON(http.StatusNotFound, gin.H{"error": "no save"})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load save"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"wave": wave, "lives": lives, "gold": gold, "seed": seed, "towers": towers})
+	})
+
+	r.POST("/delete-save", requireAuth(), func(c *gin.Context) {
+		user := getCurrentUser(c)
+		if _, err := db.Exec("DELETE FROM saves WHERE username = ?", user); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete save"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"status": "deleted"})
 	})
 
 	r.GET("/tutorial", func(c *gin.Context) {

@@ -42,23 +42,22 @@
     <button onclick="window.location.href='/quit'">Quit</button>
     <script>
         const currentUser = "{{ .User }}";
-        const saveKey = `castle_save_${currentUser || 'guest'}`;
 
-        function updateMenuContinueButton() {
+        async function updateMenuContinueButton() {
             const continueBtn = document.getElementById('btnContinue');
             if (!continueBtn) return;
-            const saved = localStorage.getItem(saveKey);
-            if (saved) {
-                continueBtn.style.display = 'inline-block';
-            } else {
+            try {
+                const resp = await fetch('/load');
+                continueBtn.style.display = resp.status === 200 ? 'inline-block' : 'none';
+            } catch (err) {
                 continueBtn.style.display = 'none';
             }
         }
 
         const startBtn = document.getElementById('btnStartNew');
         if (startBtn) {
-            startBtn.addEventListener('click', () => {
-                localStorage.removeItem(saveKey);
+            startBtn.addEventListener('click', async () => {
+                await fetch('/delete-save', { method: 'POST' });
                 window.location.href = '/game';
             });
         }
@@ -71,7 +70,6 @@
         }
 
         updateMenuContinueButton();
-        window.addEventListener('storage', updateMenuContinueButton);
     </script>
 </body>
 </html>
