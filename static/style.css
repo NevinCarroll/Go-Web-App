@@ -14,7 +14,37 @@ body.game-mode {
 }
 body.game-over {
     background-color: #000;
-    padding: 50px;
+    color: #ffffff;
+    margin: 0;
+    padding: 40px;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+body.game-over .box {
+    background: rgba(20, 20, 20, 0.9);
+    border: 2px solid #444;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
+}
+
+body.game-over #reason,
+body.game-over #stats {
+    position: static;
+    margin: 8px auto;
+    color: #f0f8ff;
+    font-size: 1.1em;
+}
+
+body.game-over button {
+    background-color: #1e90ff;
+    color: #fff;
+}
+
+body.game-over button:hover {
+    background-color: #3399ff;
 }
 
 a {
