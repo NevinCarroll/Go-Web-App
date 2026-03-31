@@ -32,6 +32,20 @@ class Vec2 {
     }
 }
 
+class SeededRNG {
+    constructor(seed) {
+        // simple LCG constants
+        this.state = seed % 2147483647;
+        if (this.state <= 0) this.state += 2147483646;
+    }
+
+    next() {
+        // return float [0,1)
+        this.state = (this.state * 16807) % 2147483647;
+        return (this.state - 1) / 2147483646;
+    }
+}
+
 const EnemyType = {
     Default: 0,
     Fast: 1,
@@ -149,8 +163,6 @@ class Game {
         this.lives = 5;
         this.gold = 300;
         this.wave = 0;
-        this.spawnTimer = 0;
-        this.spawnInterval = 2.2;
         this.selectedTowerType = TowerType.Standard;
         this.placePreview = false;
         this.previewPos = new Vec2(0, 0);
@@ -160,7 +172,12 @@ class Game {
         this.enemiesKilled = 0;
         this.towersPlaced = 0;
 
+        this.seed = Math.floor(Math.random() * 1000000);
+        this.rng = new SeededRNG(this.seed);
+        this.waveInProgress = false;
+
         this.setupInput();
+        this.setupWaveControls();
     }
 
     setupInput() {
@@ -196,6 +213,33 @@ class Game {
         if (btnStandard) btnStandard.addEventListener('click', () => this.startTowerPlacement(TowerType.Standard));
         if (btnRapid) btnRapid.addEventListener('click', () => this.startTowerPlacement(TowerType.Rapid));
         if (btnSniper) btnSniper.addEventListener('click', () => this.startTowerPlacement(TowerType.Sniper));
+    }
+
+    setupWaveControls() {
+        this.nextWaveButton = document.getElementById('btnNextWave');
+        if (this.nextWaveButton) {
+            this.nextWaveButton.addEventListener('click', () => {
+                if (this.waveInProgress) return;
+                if (this.enemies.length > 0) return;
+                this.wave++;
+                this.waveInProgress = true;
+                this.spawnEnemyWave();
+                this.updateWaveButtonState();
+            });
+        }
+
+        this.waveInfoDiv = document.getElementById('waveInfo');
+        this.updateWaveButtonState();
+    }
+
+    updateWaveButtonState() {
+        if (this.nextWaveButton) {
+            this.nextWaveButton.disabled = this.waveInProgress;
+            this.nextWaveButton.innerText = this.waveInProgress ? 'Wave in Progress' : 'Spawn Next Wave';
+        }
+        if (this.waveInfoDiv) {
+            this.waveInfoDiv.innerText = `Wave ${this.wave + 1} ready (seed: ${this.seed})`;
+        }
     }
 
     startTowerPlacement(typeID) {
@@ -254,7 +298,7 @@ class Game {
     spawnEnemyWave() {
         const enemiesThisWave = 2 + Math.floor(this.wave / 5);
         for (let i = 0; i < enemiesThisWave; i++) {
-            const r = Math.random();
+            const r = this.rng.next();
             let typeID = EnemyType.Default;
             if (r < 0.25) typeID = EnemyType.Tank;
             else if (r < 0.6) typeID = EnemyType.Fast;
@@ -263,13 +307,8 @@ class Game {
     }
 
     update(dt) {
-        this.spawnTimer += dt;
-        if (this.spawnTimer >= this.spawnInterval) {
-            this.wave++;
-            this.spawnEnemyWave();
-            this.spawnTimer -= this.spawnInterval;
-            this.spawnInterval *= 0.98;
-            if (this.spawnInterval < 0.6) this.spawnInterval = 0.6;
+        if (!this.waveInProgress) {
+            // awaiting player to press next wave
         }
 
         for (let i = this.enemies.length - 1; i >= 0; i--) {
@@ -284,6 +323,11 @@ class Game {
                 this.enemiesKilled++;
                 this.enemies.splice(i, 1);
             }
+        }
+
+        if (this.waveInProgress && this.enemies.length === 0) {
+            this.waveInProgress = false;
+            this.updateWaveButtonState();
         }
 
         for (const t of this.towers) {
@@ -375,7 +419,8 @@ class Game {
         }
 
         // Update stats
-        this.statsDiv.innerHTML = `Lives: ${this.lives} Gold: ${this.gold} Wave: ${this.wave} Towers: ${this.towers.length} Enemies: ${this.enemies.length} Selected: ${this.towerTypeName(this.selectedTowerType)}`;
+        const waveStatus = this.waveInProgress ? 'In Progress' : 'Waiting';
+        this.statsDiv.innerHTML = `Lives: ${this.lives} Gold: ${this.gold} Wave: ${this.wave} (${waveStatus}) Towers: ${this.towers.length} Enemies: ${this.enemies.length} Selected: ${this.towerTypeName(this.selectedTowerType)}`;
     }
 
     towerTypeName(t) {
