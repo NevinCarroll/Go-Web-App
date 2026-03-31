@@ -31,7 +31,13 @@
 </head>
 <body>
     <h1>Castle Defender</h1>
-    <button onclick="window.location.href='/tutorial'">Start Game</button>
+    {{ if .User }}
+        <p>Logged in as <strong>{{ .User }}</strong>. <a href="/logout">Logout</a></p>
+        <button onclick="window.location.href='/game'">Start Game</button>
+    {{ else }}
+        <button onclick="window.location.href='/login'">Login</button>
+        <button onclick="window.location.href='/register'">Register</button>
+    {{ end }}
     <button onclick="window.location.href='/quit'">Quit</button>
 </body>
 </html>
